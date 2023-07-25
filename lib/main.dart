@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 void main() {
   runApp(const MyApp());
@@ -111,6 +109,19 @@ class _MyHomePageState extends State<MyHomePage> {
   final controller = TextEditingController();
   final focus = FocusNode();
   final scrollController = ScrollController();
+  _sendMessage() {
+//socket
+    print('IP ${widget.ip}');
+    int send = socket.send(controller.text.codeUnits,
+        InternetAddress(widget.ip ?? '127.0.0.1'), 16000);
+
+    setState(() {
+      messages.add(Message(true, controller.text));
+      controller.clear();
+    });
+    scrollController.jumpTo(scrollController.position.maxScrollExtent);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -129,10 +140,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     // primary: false,
                     itemBuilder: (ctx, i) {
                       final msg = messages[i];
-                      if (msg.own) {
-                        return _OwnMessage(msg: msg);
-                      }
-                      return _OtherMessage(msg: msg);
+                      return MessageBubble(msg: msg);
                     })),
             const SizedBox(
               height: 10,
@@ -145,21 +153,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     hintText: 'Escribe un mensaje...',
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(5),
-                        borderSide: BorderSide(color: Colors.black)),
+                        borderSide: const BorderSide(color: Colors.black)),
                     suffix: InkWell(
-                      onTap: () {
-                        //socket
-                        print('IP ${widget.ip}');
-                        int send = socket.send(controller.text.codeUnits,
-                            InternetAddress(widget.ip ?? '127.0.0.1'), 16000);
-                        print('SEND: $send');
-                        setState(() {
-                          messages.add(Message(true, controller.text));
-                          controller.clear();
-                        });
-                        scrollController.jumpTo(
-                            scrollController.position.maxScrollExtent);
-                      },
+                      onTap: _sendMessage,
                       child: const Icon(Icons.send),
                     )),
               ),
@@ -171,8 +167,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class _OtherMessage extends StatelessWidget {
-  const _OtherMessage({
+class MessageBubble extends StatelessWidget {
+  const MessageBubble({
     super.key,
     required this.msg,
   });
@@ -183,56 +179,20 @@ class _OtherMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final width = size.width;
+    bool isOwnMessage = msg.own;
     return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        width: width * 0.31,
-        padding: EdgeInsets.all(4.0),
-        decoration: BoxDecoration(
-            color: Colors.grey, borderRadius: BorderRadius.circular(8.0)),
-        child: Padding(
-          padding: const EdgeInsets.all(3.0),
-          child: Text(msg.msg),
-        ),
-      ),
-    );
-  }
-}
-
-class _OwnMessage extends StatelessWidget {
-  const _OwnMessage({
-    super.key,
-    required this.msg,
-  });
-
-  final Message msg;
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final width = size.width;
-    return Align(
-      alignment: Alignment.centerRight,
+      alignment: isOwnMessage ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         width: width * 0.31,
         padding: const EdgeInsets.all(4.0),
         decoration: BoxDecoration(
-            color: Colors.teal, borderRadius: BorderRadius.circular(8.0)),
+            color: isOwnMessage ? Colors.teal : Colors.grey,
+            borderRadius: BorderRadius.circular(8.0)),
         child: Padding(
           padding: const EdgeInsets.all(3.0),
-          child: Text(
-            msg.msg,
-            style: TextStyle(color: Colors.white),
-          ),
+          child: Text(msg.msg, style: const TextStyle(color: Colors.white,)),
         ),
       ),
     );
   }
-}
-
-class SendIntent extends Intent {}
-
-class SendAction extends Action<SendIntent> {
-  @override
-  void invoke(SendIntent intent) {}
 }
